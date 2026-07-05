@@ -1,0 +1,270 @@
+openapi: 3.0.3
+info:
+  title: Invest Portfolio Platform API
+  version: 0.2.0
+  description: REST API для учебного MVP аналитико-агрегационной платформы фондового и криптовалютного рынков.
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+    PortfolioCreateRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, example: Основной портфель }
+        base_currency: { type: string, example: USD }
+        description: { type: string, example: MVP portfolio }
+    TransactionCreateRequest:
+      type: object
+      required: [asset_id, transaction_type, quantity, unit_price]
+      properties:
+        asset_id: { type: string, format: uuid }
+        transaction_type: { type: string, enum: [buy, sell] }
+        quantity: { type: number, example: 0.1 }
+        unit_price: { type: number, example: 98000 }
+        fee_amount: { type: number, example: 5 }
+        transaction_at: { type: string, format: date-time }
+        note: { type: string }
+paths:
+  /health:
+    get:
+      security: []
+      summary: Health check
+      responses:
+        '200': { description: OK }
+  /auth/register:
+    post:
+      security: []
+      summary: Register user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, display_name]
+              properties:
+                email: { type: string, example: user@example.com }
+                password: { type: string, example: StrongPass123 }
+                display_name: { type: string, example: Алексей }
+      responses:
+        '201': { description: User created }
+        '409': { description: User already exists }
+  /auth/login:
+    post:
+      security: []
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, example: user@example.com }
+                password: { type: string, example: StrongPass123 }
+      responses:
+        '200': { description: JWT pair }
+        '401': { description: Invalid credentials }
+  /auth/me:
+    get:
+      summary: Current user profile
+      responses:
+        '200': { description: User profile }
+  /auth/refresh:
+    post:
+      security: []
+      summary: Refresh JWT pair
+      responses:
+        '200': { description: New JWT pair }
+  /auth/logout:
+    post:
+      summary: Logout placeholder for MVP
+      responses:
+        '200': { description: Logged out }
+  /portfolios:
+    get:
+      summary: List current user portfolios
+      responses:
+        '200': { description: Portfolio list }
+    post:
+      summary: Create portfolio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PortfolioCreateRequest'
+      responses:
+        '201': { description: Portfolio created }
+  /portfolios/{id}:
+    get:
+      summary: Get portfolio by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Portfolio }
+  /portfolios/{id}/positions:
+    get:
+      summary: List positions with current value and P/L
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Positions }
+  /portfolios/{id}/summary:
+    get:
+      summary: Portfolio summary with total value, invested value and P/L
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Portfolio summary }
+  /portfolios/{id}/transactions:
+    get:
+      summary: List portfolio transactions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Transaction list }
+    post:
+      summary: Add buy/sell transaction and recalculate position
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionCreateRequest'
+      responses:
+        '201': { description: Transaction created }
+  /assets:
+    get:
+      security: []
+      summary: List assets
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { description: Asset list }
+  /assets/search:
+    get:
+      security: []
+      summary: Search assets by ticker or name
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { description: Search results }
+  /assets/{id}:
+    get:
+      security: []
+      summary: Asset card
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Asset }
+  /assets/{id}/price-history:
+    get:
+      security: []
+      summary: Price history candles
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: timeframe
+          in: query
+          schema: { type: string, example: 1d }
+      responses:
+        '200': { description: Price history }
+  /assets/{id}/price:
+    get:
+      security: []
+      summary: Current asset price from Redis, external API, or PostgreSQL fallback
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Asset price }
+  /analytics/assets/{id}/chart:
+    get:
+      security: []
+      summary: Asset chart candles
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: timeframe
+          in: query
+          schema: { type: string, example: 1d }
+      responses:
+        '200': { description: Candles for chart }
+  /analytics/assets/{id}/indicators:
+    get:
+      security: []
+      summary: RSI, MACD, Bollinger Bands, SMA and EMA calculated on backend
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: timeframe
+          in: query
+          schema: { type: string, example: 1d }
+      responses:
+        '200': { description: Calculated indicators }
+  /analytics/assets/{id}/overview:
+    get:
+      security: []
+      summary: Full analytics payload for Flutter asset analytics screen
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: timeframe
+          in: query
+          schema: { type: string, example: 1d }
+      responses:
+        '200': { description: Price, candles and indicators }
+  /news:
+    get:
+      security: []
+      summary: Static MVP news feed
+      responses:
+        '200': { description: News list }
